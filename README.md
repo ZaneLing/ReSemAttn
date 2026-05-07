@@ -1,5 +1,12 @@
 # ReSemAttn: Relation-Semantic Attention for Biomedical Multi-hop Reasoning
 
+## Paper
+<center>
+  <img src="mf.jpg" width="100%">
+</center>
+Biomedical multi-hop reasoning is the inference of casual relationships across multiple entities and relations within the biomedical knowledge graph (KG), which is essential for discovering hidden connections and analyzing complex mechanisms. Existing methods improve biomedical reasoning by providing more precise search capabilities and more accurate path traversal, but they still face  reachable-but-invalid challenge which means models may select candidates that are topologically reachable yet biologically or semantically invalid for the given question. We propose **ReSemAttn**, a framework that injects relation-semantic-aware evidence prior into model attention, makes KG relation semantics a control signal throughout biomedical multi-hop reasoning. ReSemAttn evaluates whether each candidate-specific path satisfies the question-induced biomedical schema through entity anchoring, relation compatibility, path consistency, and topology reliability. This enables the model to jointly align the question, candidate answer, and KG reasoning path, thereby distinguishing semantically valid biomedical evidence from reachable-but-invalid graph connections. Extensive experiments conducted across diverse biomedical multi-hop benchmarks demonstrate that ReSemAttn significantly enhance both the validity of the reachable path and the accuracy of reasoning.
+
+
 This repository is a complete, runnable reference implementation of **ReSemAttn**, organized according to the four blocks in the method section of the paper:
 
 1. **Problem setup and schema-guided evidence construction**
