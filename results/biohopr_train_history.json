@@ -1,0 +1,9 @@
+{
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 1.0686214566230774
+    }
+  ],
+  "checkpoint": "checkpoints/biohopr.pt"
+}

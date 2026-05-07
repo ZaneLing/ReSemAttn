@@ -1,0 +1,57 @@
+seed: 42
+num_threads: 1
+
+datasets:
+  biohopr:
+    train: data/biohopr/train.jsonl
+    dev: data/biohopr/dev.jsonl
+    test: data/biohopr/test.jsonl
+  primekgqa:
+    train: data/primekgqa/train.jsonl
+    dev: data/primekgqa/dev.jsonl
+    test: data/primekgqa/test.jsonl
+  medreason:
+    train: data/medreason/train.jsonl
+    dev: data/medreason/dev.jsonl
+    test: data/medreason/test.jsonl
+
+model:
+  vocab_size: 4096
+  entity_vocab_size: 4096
+  relation_vocab_size: 512
+  type_vocab_size: 128
+  direction_vocab_size: 8
+  max_hops: 4
+  max_paths: 8
+  max_candidates: 64
+  max_seq_len: 32
+  hidden_dim: 32
+  n_heads: 2
+  n_layers: 0
+  dropout: 0.1
+  relation_kv_bases: 4
+  relation_kv_rank: 8
+  use_relaxed_relation_similarity: true
+
+training:
+  epochs: 1
+  optimizer: sgd
+  lr: 0.001
+  weight_decay: 0.01
+  positive_weight: 1.5
+  pair_margin: 0.25
+  lambda_pair: 0.2
+  lambda_list: 0.1
+  grad_clip: 1.0
+  device: auto
+  save_attention: true
+
+evaluation:
+  ks: [1, 5, 10]
+  strict_path_validity: true
+  path_validity_relation_threshold: 0.5
+  path_validity_type_threshold: 1.0
+
+output:
+  checkpoint_dir: checkpoints
+  result_dir: results
