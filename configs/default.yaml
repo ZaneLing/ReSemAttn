@@ -1,0 +1,59 @@
+seed: 42
+device: cpu
+
+data:
+  entities: data/toy/entities.jsonl
+  edges: data/toy/edges.jsonl
+  questions: data/toy/questions.jsonl
+  add_inverse_edges: true
+
+encoder:
+  backend: hashing
+  hidden_dim: 128
+  vocab_size: 32768
+  max_length: 96
+  dropout: 0.1
+
+schema:
+  max_hops: 3
+  top_m: 4
+  beam_size: 12
+
+search:
+  top_n_anchors: 5
+  beam_width: 24
+  max_hops: 3
+  max_expansions: 1000
+  max_paths_per_candidate: 8
+  lambda_ground: 1.0
+  lambda_schema: 2.0
+  lambda_semantic: 0.5
+  lambda_hub: 0.15
+  relation_mismatch: 1.0
+  direction_mismatch: 0.75
+  type_mismatch: 0.5
+  length_mismatch: 0.5
+
+model:
+  hidden_dim: 128
+  type_dim: 32
+  relation_dim: 64
+  topology_dim: 16
+  attention_layers: 2
+  relation_bases: 4
+  relation_rank: 16
+  prior_strength: 1.0
+  path_score_weight: 0.5
+  answer_threshold: 0.5
+  dropout: 0.1
+
+training:
+  learning_rate: 0.0005
+  weight_decay: 0.01
+  epochs: 5
+  pointwise_weight: 1.0
+  pairwise_weight: 0.5
+  listwise_weight: 0.5
+  path_weight: 0.25
+  calibration_weight: 0.1
+  pairwise_margin: 0.2

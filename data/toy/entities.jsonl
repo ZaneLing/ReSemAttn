@@ -1,0 +1,8 @@
+{"id": "disease:ra", "name": "rheumatoid arthritis", "type": "disease", "aliases": ["RA"]}
+{"id": "drug:methotrexate", "name": "methotrexate", "type": "drug", "aliases": ["MTX"]}
+{"id": "drug:adalimumab", "name": "adalimumab", "type": "drug", "aliases": ["Humira"]}
+{"id": "effect:nausea", "name": "nausea", "type": "effect", "aliases": []}
+{"id": "effect:infection", "name": "infection risk", "type": "effect", "aliases": ["increased infection risk"]}
+{"id": "disease:psoriasis", "name": "psoriasis", "type": "disease", "aliases": []}
+{"id": "protein:tnf", "name": "tumor necrosis factor", "type": "protein", "aliases": ["TNF"]}
+{"id": "process:inflammation", "name": "inflammatory response", "type": "process", "aliases": []}

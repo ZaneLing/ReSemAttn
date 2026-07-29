@@ -1,0 +1,8 @@
+{"source": "drug:methotrexate", "relation": "indication", "target": "disease:ra", "provenance": "toy"}
+{"source": "drug:adalimumab", "relation": "indication", "target": "disease:ra", "provenance": "toy"}
+{"source": "drug:methotrexate", "relation": "side_effect", "target": "effect:nausea", "provenance": "toy"}
+{"source": "drug:adalimumab", "relation": "side_effect", "target": "effect:infection", "provenance": "toy"}
+{"source": "drug:adalimumab", "relation": "targets", "target": "protein:tnf", "provenance": "toy"}
+{"source": "protein:tnf", "relation": "associated_with", "target": "disease:psoriasis", "provenance": "toy"}
+{"source": "protein:tnf", "relation": "participates_in", "target": "process:inflammation", "provenance": "toy"}
+{"source": "disease:ra", "relation": "associated_with", "target": "process:inflammation", "provenance": "toy"}

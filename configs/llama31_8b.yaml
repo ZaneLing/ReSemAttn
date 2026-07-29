@@ -1,0 +1,61 @@
+seed: 42
+device: cuda
+
+data:
+  entities: data/primekg/entities.jsonl
+  edges: data/primekg/edges.jsonl
+  questions: data/biohopr/questions.jsonl
+  add_inverse_edges: true
+
+encoder:
+  backend: huggingface
+  model_name: meta-llama/Llama-3.1-8B-Instruct
+  hidden_dim: 4096
+  max_length: 384
+  torch_dtype: bfloat16
+  freeze: false
+  trust_remote_code: false
+
+schema:
+  max_hops: 3
+  top_m: 8
+  beam_size: 32
+
+search:
+  top_n_anchors: 20
+  beam_width: 64
+  max_hops: 3
+  max_expansions: 20000
+  max_paths_per_candidate: 16
+  lambda_ground: 1.0
+  lambda_schema: 2.0
+  lambda_semantic: 0.5
+  lambda_hub: 0.15
+  relation_mismatch: 1.0
+  direction_mismatch: 0.75
+  type_mismatch: 0.5
+  length_mismatch: 0.5
+
+model:
+  hidden_dim: 4096
+  type_dim: 128
+  relation_dim: 256
+  topology_dim: 64
+  attention_layers: 2
+  relation_bases: 8
+  relation_rank: 32
+  prior_strength: 1.0
+  path_score_weight: 0.5
+  answer_threshold: 0.5
+  dropout: 0.1
+
+training:
+  learning_rate: 0.00002
+  weight_decay: 0.01
+  epochs: 3
+  pointwise_weight: 1.0
+  pairwise_weight: 0.5
+  listwise_weight: 0.5
+  path_weight: 0.25
+  calibration_weight: 0.1
+  pairwise_margin: 0.2
