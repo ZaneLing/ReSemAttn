@@ -9,12 +9,9 @@ authors:
   - family-names: "Anonymous"
     given-names: "Authors"
 preferred-citation:
-  type: conference-paper
+  type: generic
   title: "Beyond Reachability: A Relation-Semantic Reasoning Framework for Biomedical Multi-hop QA"
   authors:
     - family-names: "Anonymous"
       given-names: "Authors"
-  conference:
-    name: "The ACM Web Conference"
-  year: 2027
-  notes: "Manuscript prepared for WWW 2027; update author metadata before citing."
+  notes: "Unpublished manuscript; update author metadata before citing."
