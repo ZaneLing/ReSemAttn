@@ -1,9 +1,10 @@
+# Diagram-derived toy fixture, not benchmark data or measured predictions.
 seed: 42
 device: cpu
 data:
-  entities: data/toy/entities.jsonl
-  edges: data/toy/edges.jsonl
-  questions: data/toy/questions.jsonl
+  entities: data/case_demo/entities.jsonl
+  edges: data/case_demo/edges.jsonl
+  questions: data/case_demo/questions.jsonl
   add_inverse_edges: true
   kind: toy
 encoder:

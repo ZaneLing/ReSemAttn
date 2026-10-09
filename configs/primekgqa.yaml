@@ -3,12 +3,12 @@ device: cuda
 data:
   entities: data/primekg/entities.jsonl
   edges: data/primekg/edges.jsonl
-  questions: data/biohopr/test.jsonl
+  questions: data/primekgqa/test.jsonl
   add_inverse_edges: true
   kind: benchmark
-  train: data/biohopr/train.jsonl
-  dev: data/biohopr/dev.jsonl
-  test: data/biohopr/test.jsonl
+  train: data/primekgqa/train.jsonl
+  dev: data/primekgqa/dev.jsonl
+  test: data/primekgqa/test.jsonl
 encoder:
   backend: huggingface
   model_name: meta-llama/Llama-3.1-8B-Instruct
@@ -61,3 +61,5 @@ training:
   schema_weight: 1.0
   grounding_weight: 1.0
   batch_size: 8
+output:
+  open_answer: canonical

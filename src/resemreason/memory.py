@@ -43,7 +43,12 @@ class PathMemoryEncoder(nn.Module):
     def _path_features(self, path: KGPath, device: torch.device | str) -> torch.Tensor:
         unique_ratio = len(set(path.nodes)) / max(1, len(path.nodes))
         return torch.tensor(
-            [float(path.hops), unique_ratio, float(path.nodes[0] == path.nodes[-1]), float(path.search_score)],
+            [
+                float(path.hops),
+                unique_ratio,
+                float(path.nodes[0] == path.nodes[-1]),
+                float(path.search_score),
+            ],
             dtype=torch.float32,
             device=device,
         )
@@ -72,6 +77,8 @@ class PathMemoryEncoder(nn.Module):
         relation_vectors = []
         topology_penalties = []
         for path in paths:
+            if path.hops < 1:
+                raise ValueError("Evidence memory requires at least one edge per path.")
             type_ids = torch.tensor(
                 [self.kg.type_to_id[self.kg.entity(node).entity_type] for node in path.nodes],
                 device=device,
@@ -92,7 +99,9 @@ class PathMemoryEncoder(nn.Module):
             topology_raw = self._topology_features(path, device)
             topology_component = self.topology_mlp(topology_raw)
             memory = self.projection(
-                torch.cat([entity_component, relation_component, path_component, topology_component])
+                torch.cat(
+                    [entity_component, relation_component, path_component, topology_component]
+                )
             )
             memories.append(memory)
             relation_vectors.append(self.relation_projection(relation_component))
@@ -103,7 +112,9 @@ class PathMemoryEncoder(nn.Module):
             torch.stack(topology_penalties),
         )
 
-    def mismatch(self, schema: RelationSchema, path: KGPath, topology_penalty: torch.Tensor) -> torch.Tensor:
+    def mismatch(
+        self, schema: RelationSchema, path: KGPath, topology_penalty: torch.Tensor
+    ) -> torch.Tensor:
         entity_mismatch = 0.0
         for idx, node in enumerate(path.nodes[: len(schema.entity_types)]):
             entity_mismatch += float(self.kg.entity(node).entity_type != schema.entity_types[idx])
@@ -135,16 +146,32 @@ class RelationSemanticPrior(nn.Module):
         schemas: list[RelationSchema],
         topology_penalties: torch.Tensor,
         memory_encoder: PathMemoryEncoder,
+        schema_probabilities: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        if not schemas or not paths:
+            raise ValueError("Paths and schemas must be nonempty.")
+        rho = (
+            topology_penalties.new_tensor([s.probability for s in schemas])
+            if schema_probabilities is None
+            else schema_probabilities
+        )
+        if (
+            rho.shape != (len(schemas),)
+            or not torch.isfinite(rho).all()
+            or (rho < 0).any()
+            or rho.sum() <= 0
+        ):
+            raise ValueError("Invalid schema probabilities.")
+        rho = rho / rho.sum()
         beta = torch.nn.functional.softplus(self.gamma)
         path_scores = []
         for path_idx, path in enumerate(paths):
             schema_scores = []
-            for schema in schemas:
+            for schema_idx, schema in enumerate(schemas):
                 mismatch = memory_encoder.mismatch(schema, path, topology_penalties[path_idx])
                 energy = beta @ mismatch
                 schema_scores.append(
-                    energy.new_tensor(math.log(max(schema.probability, 1e-12))) - energy
+                    rho[schema_idx].clamp_min(torch.finfo(rho.dtype).tiny).log() - energy
                 )
             path_scores.append(torch.logsumexp(torch.stack(schema_scores), dim=0))
         absolute = torch.stack(path_scores)

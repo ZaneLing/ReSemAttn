@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -27,6 +28,10 @@ class Edge:
     provenance: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict, compare=False, hash=False)
 
+    def __post_init__(self) -> None:
+        if self.direction not in (-1, 1):
+            raise ValueError("Edge direction must be -1 or +1.")
+
 
 @dataclass(frozen=True)
 class GroundingCandidate:
@@ -44,6 +49,10 @@ class RelationSchema:
     probability: float = 1.0
 
     def __post_init__(self) -> None:
+        if any(d not in (-1, 1) for d in self.directions):
+            raise ValueError("Directions must be -1 or +1.")
+        if not math.isfinite(self.probability) or self.probability < 0:
+            raise ValueError("Schema probability must be finite and nonnegative.")
         if self.hops < 1:
             raise ValueError("Schema must contain at least one hop.")
         if len(self.entity_types) != self.hops + 1:
@@ -60,6 +69,10 @@ class KGPath:
     search_score: float = 0.0
 
     def __post_init__(self) -> None:
+        if not math.isfinite(self.search_score):
+            raise ValueError("Path search score must be finite.")
+        if any(d not in (-1, 1) for d in self.directions):
+            raise ValueError("Directions must be -1 or +1.")
         if len(self.nodes) != len(self.relations) + 1:
             raise ValueError("A path must contain one more node than relations.")
         if len(self.relations) != len(self.directions):
@@ -103,3 +116,8 @@ class InferenceResult:
     schemas: list[RelationSchema]
     predictions: list[CandidatePrediction]
     answer_ids: list[str]
+
+
+def path_key(path: KGPath) -> tuple:
+    """Canonical tie-break key; search score is not part of path identity."""
+    return path.nodes, path.relations, path.directions

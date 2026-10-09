@@ -10,6 +10,10 @@ from resemreason.pipeline import ReSemReasonPipeline
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/default.yaml")
+    parser.add_argument("--trace", help="Save layer-wise attention with its ordered paths.")
+    parser.add_argument("--variant")
+    parser.add_argument("--checkpoint")
+    parser.add_argument("--allow-untrained-toy", action="store_true")
     parser.add_argument("--question", required=True)
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument(
@@ -19,7 +23,14 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    pipeline = ReSemReasonPipeline.from_yaml(args.config)
+    pipeline = ReSemReasonPipeline.from_yaml(args.config, variant=args.variant)
+    from resemreason.evaluation import checkpoint_for_evaluation
+
+    checkpoint_hash = checkpoint_for_evaluation(pipeline, args.checkpoint, args.allow_untrained_toy)
+    if checkpoint_hash == "untrained_toy":
+        print("UNTRAINED TOY DEMONSTRATION: these outputs are not benchmark measurements.")
+    if args.toy_oracle and pipeline.config["data"].get("kind") != "toy":
+        parser.error("--toy-oracle is restricted to toy data.")
     gold_anchors = None
     gold_schemas = None
     if args.toy_oracle:
@@ -37,6 +48,34 @@ def main() -> None:
         use_gold_schemas=gold_schemas,
     )
 
+    if args.trace:
+        from dataclasses import asdict
+
+        from resemreason.evaluation import write_json
+
+        write_json(
+            args.trace,
+            {
+                "question": args.question,
+                "checkpoint_sha256": checkpoint_hash,
+                "oracle": args.toy_oracle,
+                "config": pipeline.config,
+                "schemas": [asdict(s) for s in result.schemas],
+                "candidates": [
+                    {
+                        "entity_id": pred.entity_id,
+                        "score": pred.score,
+                        "encoded_text": args.question
+                        + " [CANDIDATE] "
+                        + pipeline.kg.entity(pred.entity_id).text,
+                        "paths": [asdict(path) for path in pred.supporting_paths],
+                        "path_scores": pred.path_scores,
+                        "attention_layers": [a.tolist() for a in pred.attentions],
+                    }
+                    for pred in result.predictions[: args.top_k]
+                ],
+            },
+        )
     print("\nGrounded anchors")
     for item in result.groundings:
         entity = pipeline.kg.entity(item.entity_id)

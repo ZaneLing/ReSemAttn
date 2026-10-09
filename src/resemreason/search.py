@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 from .graph import BiomedicalKG
 from .text_encoder import BaseTextEncoder
-from .types import GroundingCandidate, KGPath, RelationSchema
+from .types import GroundingCandidate, KGPath, RelationSchema, path_key
 
 
 class RelationGuidedSearcher:
@@ -18,6 +18,9 @@ class RelationGuidedSearcher:
         text_encoder: BaseTextEncoder,
         config: dict,
     ) -> None:
+        self.strategy = config.get("strategy", "guided")
+        if self.strategy not in ("guided", "bfs"):
+            raise ValueError("Search strategy must be guided or bfs.")
         self.kg = kg
         self.text_encoder = text_encoder
         self.beam_width = int(config.get("beam_width", 24))
@@ -48,7 +51,9 @@ class RelationGuidedSearcher:
             distance += self.length_mismatch * abs(path.hops - schema.hops)
         return distance
 
-    def _compatibility(self, schemas: list[RelationSchema], path: KGPath, partial: bool = True) -> float:
+    def _compatibility(
+        self, schemas: list[RelationSchema], path: KGPath, partial: bool = True
+    ) -> float:
         values = [
             math.log(max(schema.probability, 1e-12)) - self._distance(schema, path, partial=partial)
             for schema in schemas
@@ -62,9 +67,12 @@ class RelationGuidedSearcher:
         endpoint_id: str,
         device: torch.device | str,
     ) -> float:
-        entity_vector = self.text_encoder.encode([self.kg.entity(endpoint_id).text], device=device).pooled[0]
+        entity_vector = self.text_encoder.encode(
+            [self.kg.entity(endpoint_id).text], device=device
+        ).pooled[0]
         return float(F.cosine_similarity(question_vector, entity_vector, dim=0).item())
 
+    @torch.no_grad()
     def search(
         self,
         question: str,
@@ -72,37 +80,51 @@ class RelationGuidedSearcher:
         schemas: list[RelationSchema],
         device: torch.device | str = "cpu",
     ) -> dict[str, list[KGPath]]:
+        self.last_stats = {"edge_attempts": 0, "unique_nodes": 0}
         if not groundings or not schemas:
             return {}
-        question_vector = self.text_encoder.encode([question], device=device).pooled[0]
+        question_vector = (
+            self.text_encoder.encode([question], device=device).pooled[0]
+            if self.strategy == "guided"
+            else None
+        )
         beams: list[tuple[KGPath, float]] = []
         grounding_probability = {item.entity_id: item.probability for item in groundings}
         for grounding in groundings:
-            path = KGPath(nodes=(grounding.entity_id,), relations=(), directions=(), search_score=0.0)
+            path = KGPath(
+                nodes=(grounding.entity_id,), relations=(), directions=(), search_score=0.0
+            )
             beams.append((path, self.lambda_ground * math.log(max(grounding.probability, 1e-12))))
 
         completed: list[KGPath] = []
         expansions = 0
+        visited = set()
         for _hop in range(1, self.max_hops + 1):
             next_beam: list[tuple[KGPath, float]] = []
-            for path, base_score in beams:
-                for edge in self.kg.neighbors(path.end):
+            for path, _ in beams:
+                for edge in sorted(
+                    self.kg.neighbors(path.end), key=lambda e: (e.target, e.relation, e.direction)
+                ):
                     if expansions >= self.max_expansions:
                         break
                     expansions += 1
+                    visited.add(edge.target)
                     if edge.target in path.nodes:
                         continue
                     provisional = path.extend(edge, score=0.0)
-                    compatibility = self._compatibility(schemas, provisional, partial=True)
-                    semantic = self._endpoint_semantics(question_vector, edge.target, device)
-                    hub = math.log1p(self.kg.degree(edge.target))
-                    anchor_prob = grounding_probability.get(provisional.start, 1e-12)
-                    score = (
-                        self.lambda_ground * math.log(max(anchor_prob, 1e-12))
-                        + self.lambda_schema * compatibility
-                        + self.lambda_semantic * semantic
-                        - self.lambda_hub * hub
-                    )
+                    if self.strategy == "bfs":
+                        score = -float(provisional.hops)
+                    else:
+                        compatibility = self._compatibility(schemas, provisional, partial=True)
+                        semantic = self._endpoint_semantics(question_vector, edge.target, device)
+                        hub = math.log1p(self.kg.degree(edge.target))
+                        anchor_prob = grounding_probability.get(provisional.start, 1e-12)
+                        score = (
+                            self.lambda_ground * math.log(max(anchor_prob, 1e-12))
+                            + self.lambda_schema * compatibility
+                            + self.lambda_semantic * semantic
+                            - self.lambda_hub * hub
+                        )
                     extended = KGPath(
                         nodes=provisional.nodes,
                         relations=provisional.relations,
@@ -114,13 +136,14 @@ class RelationGuidedSearcher:
                         completed.append(extended)
                 if expansions >= self.max_expansions:
                     break
-            next_beam.sort(key=lambda item: item[1], reverse=True)
+            next_beam.sort(key=lambda item: (-item[1], path_key(item[0])))
             beams = next_beam[: self.beam_width]
             if not beams or expansions >= self.max_expansions:
                 break
 
         grouped: dict[str, list[KGPath]] = defaultdict(list)
-        for path in sorted(completed, key=lambda item: item.search_score, reverse=True):
+        for path in sorted(completed, key=lambda item: (-item.search_score, path_key(item))):
             if len(grouped[path.end]) < self.max_paths_per_candidate:
                 grouped[path.end].append(path)
+        self.last_stats = {"edge_attempts": expansions, "unique_nodes": len(visited)}
         return dict(grouped)

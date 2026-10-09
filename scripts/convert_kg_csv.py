@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Convert generic entity/edge CSV files to the ReSemReason JSONL schema."""
+
 from __future__ import annotations
 
 import argparse
@@ -11,11 +12,16 @@ from pathlib import Path
 def convert_entities(args: argparse.Namespace) -> None:
     output = Path(args.output_entities)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with Path(args.entities_csv).open("r", encoding="utf-8", newline="") as src, output.open(
-        "w", encoding="utf-8"
-    ) as dst:
+    with (
+        Path(args.entities_csv).open("r", encoding="utf-8", newline="") as src,
+        output.open("w", encoding="utf-8") as dst,
+    ):
         for row in csv.DictReader(src):
-            aliases = [item.strip() for item in row.get(args.aliases_col, "").split(args.alias_sep) if item.strip()]
+            aliases = [
+                item.strip()
+                for item in row.get(args.aliases_col, "").split(args.alias_sep)
+                if item.strip()
+            ]
             dst.write(
                 json.dumps(
                     {
@@ -33,9 +39,10 @@ def convert_entities(args: argparse.Namespace) -> None:
 def convert_edges(args: argparse.Namespace) -> None:
     output = Path(args.output_edges)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with Path(args.edges_csv).open("r", encoding="utf-8", newline="") as src, output.open(
-        "w", encoding="utf-8"
-    ) as dst:
+    with (
+        Path(args.edges_csv).open("r", encoding="utf-8", newline="") as src,
+        output.open("w", encoding="utf-8") as dst,
+    ):
         for row in csv.DictReader(src):
             payload = {
                 "source": row[args.source_col],

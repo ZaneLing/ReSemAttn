@@ -12,7 +12,10 @@ class BiomedicalKG:
     """Directed biomedical KG with explicit inverse traversal records."""
 
     def __init__(self, entities: Iterable[Entity], edges: Iterable[Edge], add_inverse: bool = True):
-        self.entities = {entity.entity_id: entity for entity in entities}
+        entity_records = list(entities)
+        self.entities = {entity.entity_id: entity for entity in entity_records}
+        if len(self.entities) != len(entity_records):
+            raise ValueError("Duplicate canonical entity IDs.")
         self._adjacency: dict[str, list[Edge]] = defaultdict(list)
         self._stored_edges: list[Edge] = []
 
@@ -91,9 +94,23 @@ class BiomedicalKG:
         except KeyError as exc:
             raise KeyError(f"Unknown entity: {entity_id}") from exc
 
-    def describe_path(self, nodes: tuple[str, ...], relations: tuple[str, ...], directions: tuple[int, ...]) -> str:
+    def describe_path(
+        self, nodes: tuple[str, ...], relations: tuple[str, ...], directions: tuple[int, ...]
+    ) -> str:
         chunks = [self.entity(nodes[0]).name]
         for idx, relation in enumerate(relations):
             arrow = "->" if directions[idx] == 1 else "<-"
             chunks.extend([f"-{relation}{arrow}", self.entity(nodes[idx + 1]).name])
         return " ".join(chunks)
+
+    def validate_path(self, path) -> None:
+        if not path.nodes or any(node not in self.entities for node in path.nodes):
+            raise ValueError("Path contains an unknown entity.")
+        for j, relation in enumerate(path.relations):
+            if not any(
+                e.target == path.nodes[j + 1]
+                and e.relation == relation
+                and e.direction == path.directions[j]
+                for e in self.neighbors(path.nodes[j])
+            ):
+                raise ValueError("Path contains an edge that does not exist in the KG.")

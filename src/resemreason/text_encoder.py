@@ -92,10 +92,11 @@ class HuggingFaceTextEncoder(BaseTextEncoder):
         torch_dtype: str = "bfloat16",
         freeze: bool = False,
         trust_remote_code: bool = False,
+        gradient_checkpointing: bool = False,
     ) -> None:
         super().__init__()
         try:
-            from transformers import AutoModel, AutoTokenizer
+            from transformers import AutoModelForCausalLM, AutoTokenizer
         except ImportError as exc:
             raise ImportError("Install ReSemReason with the 'hf' extra.") from exc
 
@@ -105,19 +106,26 @@ class HuggingFaceTextEncoder(BaseTextEncoder):
         )
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.model = AutoModel.from_pretrained(
+        self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
             trust_remote_code=trust_remote_code,
         )
         self.max_length = max_length
+        if gradient_checkpointing:
+            self.model.gradient_checkpointing_enable(
+                gradient_checkpointing_kwargs={"use_reentrant": False}
+            )
+            self.model.config.use_cache = False
         self.hidden_dim = int(self.model.config.hidden_size)
         if freeze:
             for parameter in self.model.parameters():
                 parameter.requires_grad = False
 
     def encode(self, texts: Sequence[str], device: torch.device | str | None = None) -> TextBatch:
-        target_device = torch.device(device) if device is not None else next(self.model.parameters()).device
+        target_device = (
+            torch.device(device) if device is not None else next(self.model.parameters()).device
+        )
         batch = self.tokenizer(
             list(texts),
             padding=True,
@@ -125,12 +133,37 @@ class HuggingFaceTextEncoder(BaseTextEncoder):
             max_length=self.max_length,
             return_tensors="pt",
         ).to(target_device)
-        outputs = self.model(**batch)
+        outputs = self.model.base_model(**batch, use_cache=False)
         hidden = outputs.last_hidden_state
         mask = batch["attention_mask"].bool()
         denom = mask.sum(dim=1, keepdim=True).clamp_min(1)
         pooled = (hidden * mask.unsqueeze(-1)).sum(dim=1) / denom
         return TextBatch(token_states=hidden, attention_mask=mask, pooled=pooled)
+
+    @torch.no_grad()
+    def generate_answer(self, question: str, evidence: str, max_new_tokens: int = 128) -> str:
+        self.model.eval()
+        prompt = (
+            "Answer the biomedical question concisely using the supplied evidence. "
+            "Return only the answer.\nQuestion: " + question + "\nEvidence: " + evidence
+        )
+        if self.tokenizer.chat_template:
+            prompt = self.tokenizer.apply_chat_template(
+                [{"role": "user", "content": prompt}], tokenize=False, add_generation_prompt=True
+            )
+        device = next(self.model.parameters()).device
+        batch = self.tokenizer(
+            prompt, truncation=True, max_length=self.max_length, return_tensors="pt"
+        ).to(device)
+        output = self.model.generate(
+            **batch,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=self.tokenizer.pad_token_id,
+        )
+        return self.tokenizer.decode(
+            output[0, batch["input_ids"].shape[1] :], skip_special_tokens=True
+        ).strip()
 
 
 def build_text_encoder(config: dict) -> BaseTextEncoder:
@@ -149,5 +182,6 @@ def build_text_encoder(config: dict) -> BaseTextEncoder:
             torch_dtype=config.get("torch_dtype", "bfloat16"),
             freeze=bool(config.get("freeze", False)),
             trust_remote_code=bool(config.get("trust_remote_code", False)),
+            gradient_checkpointing=bool(config.get("gradient_checkpointing", False)),
         )
     raise ValueError(f"Unsupported encoder backend: {backend}")

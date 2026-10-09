@@ -1,28 +1,15 @@
-# Implementation notes
+# Implementation details
 
-## Search is discrete
+Search is discrete, with fixed coefficients. It has no learned extension scorer and no attention-to-search feedback. Grounding scores the full loaded entity inventory in chunks; no persistent embedding cache is used. Paths completed at retained schema hop counts are collected before continuing-beam pruning. Edge attempts include cycle-rejected extensions; unique visited endpoints are a different count.
 
-The top-B beam operation is deliberately outside the gradient path. Training the search component requires supervision over local path extensions, positive paths, and matched reachable-but-invalid negatives. The reference trainer focuses on downstream candidate scoring; add a search-ranking dataloader for full staged training.
+Path memories mean-pool type and directed-relation embeddings. They do not preserve relation order; positional order is explicitly checked by the mismatch energy. Graph degree is not provenance reliability. K and V have separate low-rank mixtures. Updated token states feed the next of two evidence-attention layers.
 
-## Soft schema supervision
+Training uses the exact candidate forward used by inference, followed by BCE, positive-set listwise loss and Brier calibration. The appendix's grounding/schema NLL and supplied matched-pair completion losses are enabled. Only discrete retrieval and schema selection are detached. Retained schema probabilities remain differentiable in the evidence prior. No-candidate questions are skipped and counted.
 
-Training data may contain hop count, relation-family, direction, bridge-type, and answer-type labels. These labels are training targets only. Validation and test code should call `SoftSchemaPredictor.predict(question)` without passing benchmark metadata.
+The generator is optional and separate from the entity-ranker objective: generation consumes predicted evidence and the question, never gold answers. Its prompt/decoding completion is documented, not claimed to be a recovered historical implementation.
 
-## Relation-conditioned projections
+Scores use log-mean-exp absolute support. Uniformly shifting path compatibilities leaves normalized attention prior unchanged and changes absolute support. Duplicating all paths preserves log-mean-exp; selectively duplicating one path does not. Explanations use argmax-u, not attention sums. In the CE control, explanations instead follow the cross-encoder's path score, as appropriate for that baseline.
 
-`RelationConditionedProjection` implements a base projection plus a mixture of low-rank basis transformations. Mixture weights are generated from the directed relation-sequence representation.
+Checkpoint format v2 includes model state, grounding temperature, seed, calibrated threshold, effective config, KG vocabulary and exact graph-file hashes. Loading rejects older surrogate-trained checkpoints and mismatched graphs/architectural control variants. Predictions include the checkpoint hash; real evaluation cannot silently use random initialization. Test data cannot fit thresholds through the calibration CLI.
 
-## Path validity
-
-`metrics.schema_path_validity` is useful for unit tests and automatic benchmark checks when a gold relation schema is defined. It is not a replacement for independently annotated biomedical validity in the reachable-but-invalid challenge.
-
-## Scaling to PrimeKG
-
-The toy implementation encodes entity text on demand. For PrimeKG-scale runs:
-
-1. precompute entity text embeddings;
-2. store them in a memory-mapped matrix or vector index;
-3. cache degree statistics and typed adjacency lists;
-4. batch endpoint semantic scoring;
-5. batch candidate path memories across candidates;
-6. use mixed precision and distributed training for Llama-3.1-8B-Instruct.
+This software implements inspectable evidence scoring. A path's independent biomedical validity must be annotated separately; schema agreement and attention are not causal or clinical validation. No experimental result is generated without actual model outputs.

@@ -26,7 +26,9 @@ def multi_positive_listwise_loss(scores: torch.Tensor, positive_mask: torch.Tens
     return denominator - numerator
 
 
-def path_pair_loss(valid_scores: torch.Tensor, invalid_scores: torch.Tensor, margin: float = 0.2) -> torch.Tensor:
+def path_pair_loss(
+    valid_scores: torch.Tensor, invalid_scores: torch.Tensor, margin: float = 0.2
+) -> torch.Tensor:
     return pairwise_ranking_loss(valid_scores, invalid_scores, margin=margin)
 
 
@@ -63,7 +65,9 @@ def combined_loss(
         components["listwise"] = float(listwise.detach())
 
     if valid_path_scores is not None and invalid_path_scores is not None:
-        path_loss = path_pair_loss(valid_path_scores, invalid_path_scores)
+        path_loss = path_pair_loss(
+            valid_path_scores, invalid_path_scores, margin=float(config.get("pairwise_margin", 0.2))
+        )
         total = total + float(config.get("path_weight", 0.25)) * path_loss
         components["path"] = float(path_loss.detach())
 

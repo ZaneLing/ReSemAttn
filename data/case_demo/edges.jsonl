@@ -1,0 +1,4 @@
+{"source": "drug:imatinib", "relation": "targets", "target": "protein:abl1", "provenance": "paper_diagram_toy_fixture"}
+{"source": "protein:abl1", "relation": "associated_with", "target": "disease:cml", "provenance": "paper_diagram_toy_fixture"}
+{"source": "drug:imatinib", "relation": "contraindication", "target": "disease:cv", "provenance": "paper_diagram_toy_fixture"}
+{"source": "disease:cv", "relation": "associated_with", "target": "disease:cml", "provenance": "paper_diagram_toy_fixture"}

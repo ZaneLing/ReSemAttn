@@ -57,17 +57,26 @@ class ReSemAttentionLayer(nn.Module):
         schema_vector: torch.Tensor,
         candidate_vector: torch.Tensor,
         schema_confidence: float | torch.Tensor,
+        relation_conditioned: bool = True,
+        use_prior: bool = True,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if token_states.dim() != 2 or path_memory.dim() != 2:
             raise ValueError("token_states and path_memory must be rank-2 tensors.")
         queries = self.query(token_states)
-        keys = self.key(path_memory, relation_vectors)
-        values = self.value(path_memory, relation_vectors)
-        logits = queries @ keys.transpose(0, 1) / math.sqrt(self.hidden_dim)
-        confidence = torch.as_tensor(
-            schema_confidence, dtype=logits.dtype, device=logits.device
+        keys = (
+            self.key(path_memory, relation_vectors)
+            if relation_conditioned
+            else self.key.base(path_memory)
         )
-        logits = logits + self.prior_strength * confidence * torch.log(path_prior.clamp_min(1e-8))
+        values = (
+            self.value(path_memory, relation_vectors)
+            if relation_conditioned
+            else self.value.base(path_memory)
+        )
+        logits = queries @ keys.transpose(0, 1) / math.sqrt(self.hidden_dim)
+        confidence = torch.as_tensor(schema_confidence, dtype=logits.dtype, device=logits.device)
+        if use_prior:
+            logits = logits + self.prior_strength * confidence * torch.log(path_prior + 1e-8)
         attention = torch.softmax(logits, dim=-1)
         context = attention @ values
         schema_expand = schema_vector.unsqueeze(0).expand_as(token_states)

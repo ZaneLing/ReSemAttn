@@ -24,7 +24,9 @@ def test_path_prior_normalizes(pipeline):
         probability=1.0,
     )
     _, _, topology = pipeline.model.path_encoder.encode_paths(paths, pipeline.device)
-    scores, prior = pipeline.model.path_prior(paths, [schema], topology, pipeline.model.path_encoder)
+    scores, prior = pipeline.model.path_prior(
+        paths, [schema], topology, pipeline.model.path_encoder
+    )
     assert scores.shape == (2,)
     assert torch.allclose(prior.sum(), torch.tensor(1.0), atol=1e-6)
     assert prior[0] > prior[1]

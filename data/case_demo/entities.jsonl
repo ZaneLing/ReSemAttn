@@ -1,0 +1,4 @@
+{"id": "drug:imatinib", "name": "imatinib", "type": "drug"}
+{"id": "protein:abl1", "name": "ABL1", "type": "protein"}
+{"id": "disease:cml", "name": "chronic myeloid leukemia", "type": "disease"}
+{"id": "disease:cv", "name": "cardiovascular disorder", "type": "disease"}

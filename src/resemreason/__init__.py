@@ -2,7 +2,7 @@
 
 from .graph import BiomedicalKG
 from .pipeline import ReSemReasonPipeline
-from .types import Entity, Edge, KGPath, RelationSchema
+from .types import Edge, Entity, KGPath, RelationSchema
 
 __all__ = [
     "BiomedicalKG",

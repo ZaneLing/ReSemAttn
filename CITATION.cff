@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "Please cite this software and the associated paper."
 title: "ReSemReason"
 type: software
-version: 0.1.0
-date-released: 2026-07-29
+version: 0.2.0
+date-released: 2026-10-09
 license: Apache-2.0
 authors:
   - family-names: "Anonymous"
@@ -15,6 +15,6 @@ preferred-citation:
     - family-names: "Anonymous"
       given-names: "Authors"
   conference:
-    name: "AAAI Conference on Artificial Intelligence"
+    name: "The ACM Web Conference"
   year: 2027
-  notes: "Under review; replace anonymous metadata after acceptance."
+  notes: "Manuscript prepared for WWW 2027; update author metadata before citing."

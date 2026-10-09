@@ -1,0 +1,21 @@
+# Overrides to merge into paper.yaml BEFORE training. Use a separate checkpoint/dev threshold per variant.
+# Freeze pools independently with scripts/frozen_pool.py; these are protocols, not measured results.
+e1_bfs_ce:
+  search: {strategy: bfs}
+  model: {reasoner: cross_encoder}
+e1_guided_ce:
+  model: {reasoner: cross_encoder}
+e2_text_attention:
+  model: {path_representation: text, relation_conditioned: false, use_attention_prior: false, path_score_weight: 0.0}
+e2_final_bias:
+  model: {relation_conditioned: false, use_attention_prior: false}
+e2_prior_only:
+  model: {relation_conditioned: false}
+e2_kv_only:
+  model: {use_attention_prior: false}
+e3_hard_schema:
+  schema: {top_m: 1}
+e5_no_absolute_support:
+  model: {path_score_weight: 0.0}
+e3_uniform_schemas:
+  schema: {probability_mode: uniform}
